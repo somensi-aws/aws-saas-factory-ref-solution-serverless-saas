@@ -85,8 +85,6 @@ APP_SITE_URL=$(aws cloudformation list-exports --query "Exports[?Name=='Serverle
 LANDING_APP_SITE_URL=$(aws cloudformation list-exports --query "Exports[?Name=='Serverless-SaaS-LandingApplicationSite'].Value" --output text)
 ADMIN_APIGATEWAYURL=$(aws cloudformation list-exports --query "Exports[?Name=='Serverless-SaaS-AdminApiGatewayUrl'].Value" --output text)
 ADMIN_IDPDETAILS=$(aws cloudformation list-exports --query "Exports[?Name=='Serverless-SaaS-OperationUsersIdpDetails'].Value" --output text)
-ADMIN_USERPOOLID=$(echo $ADMIN_IDPDETAILS | jq -r '.idp.userPoolId')
-ADMIN_APPCLIENTID=$(echo $ADMIN_IDPDETAILS | jq -r '.idp.appClientId')
 
 # Configuring admin UI
 echo "aws s3 ls s3://${ADMIN_SITE_BUCKET}"
@@ -111,8 +109,8 @@ export const environment = {
     provider: '$IDP_NAME'
   }  
 };
-
 EoF
+
 cat <<EoF >./src/environments/environment.ts
 export const environment = {
   production: false,
@@ -123,16 +121,12 @@ export const environment = {
 };
 EoF
 
-cat <<EoF >./src/environments/auth-config.js
-const auth_config = {
-  userPoolId: '$ADMIN_USERPOOLID',
-  appClientId: '$ADMIN_APPCLIENTID'
-}
+cat <<EoF >./clients/Admin/src/environments/auth-config.js
+const auth_config = $(echo "$ADMIN_IDPDETAILS" | jq -r '.');
 export default auth_config;
 EoF
 
 yarn install && yarn build
-# npm install --legacy-peer-deps && npm run build
 
 echo "aws s3 sync --delete --cache-control no-store dist s3://${ADMIN_SITE_BUCKET}"
 aws s3 sync --delete --cache-control no-store dist "s3://${ADMIN_SITE_BUCKET}"
